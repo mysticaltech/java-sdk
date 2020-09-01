@@ -272,10 +272,17 @@ public class SemanticVersionTest {
     }
 
     @Test
-    public void semanticVersionCompareToActualPreReleaseMissing() throws Exception {
+    public void semanticVersionCompareToActualPreRelease() throws Exception {
         SemanticVersion targetSV = new SemanticVersion("3.7.1-beta");
         SemanticVersion actualSV = new SemanticVersion("3.7.1");
         assertTrue(actualSV.compare(targetSV) > 0);
+    }
+
+    @Test
+    public void semanticVersionCompareToActualPreReleaseMissing() throws Exception {
+        SemanticVersion targetSV = new SemanticVersion("3.7.0");
+        SemanticVersion actualSV = new SemanticVersion("3.7.0-beta");
+        assertTrue(actualSV.compare(targetSV) < 0);
     }
 
     @Test

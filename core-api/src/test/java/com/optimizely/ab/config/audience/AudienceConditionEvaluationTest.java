@@ -1069,6 +1069,14 @@ public class AudienceConditionEvaluationTest {
         assertTrue(testInstanceString.evaluate(null, testAttributes));
     }
 
+    @Test
+    public void testIsSemanticMoreWhenOneIsBeta() {
+        Map testAttributes = new HashMap<String, String>();
+        testAttributes.put("version", "3.7.0-beta");
+        UserAttribute testInstanceString = new UserAttribute("version", "custom_attribute", "semver_lt", "3.7.0");
+        assertTrue(testInstanceString.evaluate(null, testAttributes));
+    }
+
     // Test compare greater when target is major.minor.patch
     @Test
     public void testIsSemanticFullMore() {

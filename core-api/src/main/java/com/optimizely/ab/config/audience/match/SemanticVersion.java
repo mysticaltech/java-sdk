@@ -57,6 +57,9 @@ public final class SemanticVersion {
         if (targetedVersionParts.preRelease != null &&
             userVersionParts.preRelease == null) {
             return 1;
+        } else if (targetedVersionParts.preRelease == null &&
+            userVersionParts.preRelease !=null) {
+            return -1;
         } else if (targetedVersionParts.preRelease != null) {
             for (int index = 0; index < targetedVersionParts.preRelease.size(); index++) {
                 // Compare strings
