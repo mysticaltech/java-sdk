@@ -1137,7 +1137,7 @@ public class AudienceConditionEvaluationTest {
     public void testIsSemanticLessEqualsWhenGreaterReturnsFalse() {
         Map testAttributes = new HashMap<String, String>();
         testAttributes.put("version", "2.233.91");
-        UserAttribute testInstanceString = new UserAttribute("version", "custom_attribute", "semver_le", "2.132.009");
+        UserAttribute testInstanceString = new UserAttribute("version", "custom_attribute", "semver_le", "2.132.9");
         assertFalse(testInstanceString.evaluate(null, testAttributes));
     }
 
@@ -1159,13 +1159,13 @@ public class AudienceConditionEvaluationTest {
         assertTrue(testInstanceString.evaluate(null, testAttributes));
     }
 
-    // Test compare less when target is major.minor.patch
+    // Test compare when target is major.minor.patch with leading zeros causes invalid semantic version error
     @Test
     public void testIsSemanticGreaterEqualsWhenLessReturnsFalse() {
         Map testAttributes = new HashMap<String, String>();
         testAttributes.put("version", "2.132.009");
         UserAttribute testInstanceString = new UserAttribute("version", "custom_attribute", "semver_ge", "2.233.91");
-        assertFalse(testInstanceString.evaluate(null, testAttributes));
+        assertNull(testInstanceString.evaluate(null, testAttributes));
     }
 
     /**

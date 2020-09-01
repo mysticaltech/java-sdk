@@ -85,6 +85,88 @@ public class SemanticVersionTest {
     }
 
     @Test
+    public void semanticVersionInvalidLeadingZeroMajor() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("02.1");
+        semanticVersion.splitSemanticVersion();
+    }
+
+    @Test
+    public void semanticVersionInvalidLeadingZeroMinor() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("2.01.3");
+        semanticVersion.splitSemanticVersion();
+    }
+
+    @Test
+    public void semanticVersionInvalidLeadingZeroPatch() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("2.1.03");
+        semanticVersion.splitSemanticVersion();
+    }
+
+    @Test
+    public void semanticVersionInvalidMultiplePlus() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("2.1.3+1.2+3");
+        semanticVersion.splitSemanticVersion();
+    }
+
+    @Test
+    public void semanticVersionInvalidBuildDataContainsInvalidCharacter() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("2.1.31+3_12");
+        semanticVersion.splitSemanticVersion();
+    }
+
+    @Test
+    public void semanticVersionInvalidBuildMetaData1() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("1.0.0+.123");
+        semanticVersion.splitSemanticVersion();
+    }
+
+    @Test
+    public void semanticVersionInvalidBuildMetaData2() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("1.0.0+123.");
+        semanticVersion.splitSemanticVersion();
+    }
+
+    @Test
+    public void semanticVersionInvalidPreRelease() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("1.0.0-.123");
+        semanticVersion.splitSemanticVersion();
+    }
+
+    @Test
+    public void semanticVersionInvalidPreRelease2() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("1.0.0-+123");
+        semanticVersion.splitSemanticVersion();
+    }
+    @Test
+    public void semanticVersionInvalidPreReleaseLeadingZeros() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("1.0.0-0123");
+        semanticVersion.splitSemanticVersion();
+    }
+    @Test
+    public void semanticVersionInvalidEarlyPreRelease2() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("1.2-SNAPCHAT");
+        semanticVersion.splitSemanticVersion();
+    }
+
+    @Test
+    public void semanticVersionInvalidNegativeVersion() throws Exception {
+        thrown.expect(Exception.class);
+        SemanticVersion semanticVersion = new SemanticVersion("-1.2.3-SNAPCHAT");
+        semanticVersion.splitSemanticVersion();
+    }
+
+    @Test
     public void semanticVersionInvalidDotButNoMajorVersion() throws Exception {
         thrown.expect(Exception.class);
         SemanticVersion semanticVersion = new SemanticVersion(".2.1");
@@ -145,6 +227,27 @@ public class SemanticVersionTest {
         SemanticVersion targetSV = new SemanticVersion("3.7.1");
         SemanticVersion actualSV = new SemanticVersion("3.7.0");
         assertTrue(actualSV.compare(targetSV) < 0);
+    }
+
+    @Test
+    public void semanticVersionComparePreBuildToActualLess() throws Exception {
+        SemanticVersion targetSV = new SemanticVersion("3.7.0-beta-2.2+1");
+        SemanticVersion actualSV = new SemanticVersion("3.7.0-beta-2.1+1");
+        assertTrue(actualSV.compare(targetSV) < 0);
+    }
+
+    @Test
+    public void semanticVersionDoNotComparePreBuildMetaToActualLess() throws Exception {
+        SemanticVersion targetSV = new SemanticVersion("3.7.0-beta-2.2+1");
+        SemanticVersion actualSV = new SemanticVersion("3.7.0-beta-2.2+2");
+        assertTrue(actualSV.compare(targetSV) == 0);
+    }
+
+    @Test
+    public void semanticVersionAfterPlusAllFurtherIsBuildMetaData() throws Exception {
+        SemanticVersion targetSV = new SemanticVersion("3.7.0-beta+2-2.-21");
+        SemanticVersion actualSV = new SemanticVersion("3.7.0-beta+1-2.22");
+        assertTrue(actualSV.compare(targetSV) == 0);
     }
 
     @Test

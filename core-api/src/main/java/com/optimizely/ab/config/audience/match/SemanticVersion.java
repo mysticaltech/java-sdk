@@ -17,7 +17,6 @@
 package com.optimizely.ab.config.audience.match;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static com.optimizely.ab.internal.AttributesUtil.parseNumeric;
@@ -25,8 +24,8 @@ import static com.optimizely.ab.internal.AttributesUtil.stringIsNullOrEmpty;
 
 public final class SemanticVersion {
 
-    private static final String BUILD_SEPERATOR = "+";
-    private static final String PRE_RELEASE_SEPERATOR = "-";
+    private static final char BUILD_SEPERATOR = '+';
+    private static final char PRE_RELEASE_SEPERATOR = '-';
 
     private final String version;
 
@@ -40,109 +39,167 @@ public final class SemanticVersion {
             return 0;
         }
 
-        String[] targetedVersionParts = targetedVersion.splitSemanticVersion();
-        String[] userVersionParts = splitSemanticVersion();
+        SemanticVersionObj targetedVersionParts = targetedVersion.splitSemanticVersion();
+        SemanticVersionObj userVersionParts = splitSemanticVersion();
 
-        for (int index = 0; index < targetedVersionParts.length; index++) {
+        for (int index = 0; index < targetedVersionParts.versionParts.size(); index++) {
 
-            if (userVersionParts.length <= index) {
-                return targetedVersion.isPreRelease() ? 1 : -1;
+            if (userVersionParts.versionParts.size() <= index) {
+                return -1;
             }
-            Integer targetVersionPartInt = parseNumeric(targetedVersionParts[index]);
-            Integer userVersionPartInt = parseNumeric(userVersionParts[index]);
+            Integer targetVersionPartInt = targetedVersionParts.versionParts.get(index);
+            Integer userVersionPartInt = userVersionParts.versionParts.get(index);
 
-            if (userVersionPartInt == null) {
+            if (!userVersionPartInt.equals(targetVersionPartInt)) {
+                return userVersionPartInt < targetVersionPartInt ? -1 : 1;
+            }
+        }
+        if (targetedVersionParts.preRelease != null &&
+            userVersionParts.preRelease == null) {
+            return 1;
+        } else if (targetedVersionParts.preRelease != null) {
+            for (int index = 0; index < targetedVersionParts.preRelease.size(); index++) {
                 // Compare strings
-                int result = userVersionParts[index].compareTo(targetedVersionParts[index]);
+                int result = userVersionParts.preRelease.get(index).compareTo(targetedVersionParts.preRelease.get(index));
                 if (result != 0) {
                     return result;
                 }
-            } else if (targetVersionPartInt != null) {
-                if (!userVersionPartInt.equals(targetVersionPartInt)) {
-                    return userVersionPartInt < targetVersionPartInt ? -1 : 1;
-                }
-            } else {
-                return -1;
             }
-        }
-
-        if (!targetedVersion.isPreRelease() &&
-            isPreRelease()) {
-            return -1;
         }
 
         return 0;
     }
 
-    public boolean isPreRelease() {
-        return version.contains(PRE_RELEASE_SEPERATOR);
-    }
+    private List<String> preParts, metaParts;
 
-    public boolean isBuild() {
-        return version.contains(BUILD_SEPERATOR);
-    }
-
-    private int dotCount(String prefixVersion) {
-        char[] vCharArray = prefixVersion.toCharArray();
-        int count = 0;
-        for (char c : vCharArray) {
-            if (c == '.') {
-                count++;
-            }
+    private boolean stateRelease(char[] input, int index) throws Exception {
+        int pos = index;
+        while ((pos < input.length)
+            && ((input[pos] >= '0' && input[pos] <= '9')
+            || (input[pos] >= 'a' && input[pos] <= 'z')
+            || (input[pos] >= 'A' && input[pos] <= 'Z') || input[pos] == PRE_RELEASE_SEPERATOR)) {
+            pos++; // match [0..9a-zA-Z-]+
         }
-        return count;
+        if (pos == index) { // Empty String -> Error
+            return false;
+        }
+        if (input[index] == '0') { // Leading zero
+            // throw error
+            throw new Exception("Invalid Semantic Version.");
+        }
+
+        preParts.add(new String(input, index, pos - index));
+        if (pos == input.length) { // End of input
+            return true;
+        }
+        if (input[pos] == '.') { // More parts -> descend
+            return stateRelease(input, pos + 1);
+        }
+        if (input[pos] == BUILD_SEPERATOR) { // Build meta -> descend
+            metaParts = new ArrayList<>();
+            return stateMeta(input, pos + 1);
+        }
+
+        return false;
     }
 
-    public String[] splitSemanticVersion() throws Exception {
-        List<String> versionParts = new ArrayList<>();
-        String versionPrefix = "";
-        // pre-release or build.
-        String versionSuffix = "";
-        // for example: beta.2.1
-        String[] preVersionParts;
+    private boolean stateMeta(char[] input, int index) {
+        int pos = index;
+        while ((pos < input.length)
+            && ((input[pos] >= '0' && input[pos] <= '9')
+            || (input[pos] >= 'a' && input[pos] <= 'z')
+            || (input[pos] >= 'A' && input[pos] <= 'Z') || input[pos] == PRE_RELEASE_SEPERATOR)) {
+            pos++; // match [0..9a-zA-Z-]+
+        }
+        if (pos == index) { // Empty String -> Error
+            return false;
+        }
 
+        metaParts.add(new String(input, index, pos - index));
+        if (pos == input.length) { // End of input
+            return true;
+        }
+        if (input[pos] == '.') { // More parts -> descend
+            return stateMeta(input, pos + 1);
+        }
+
+        return false;
+    }
+
+    public SemanticVersionObj splitSemanticVersion() throws Exception {
         // Contains white spaces
         if (version.contains(" ")) {   // log and throw error
             throw new Exception("Semantic version contains white spaces. Invalid Semantic Version.");
         }
 
-        if (isBuild() || isPreRelease()) {
-            String[] partialVersionParts = version.split(isPreRelease() ?
-                PRE_RELEASE_SEPERATOR : BUILD_SEPERATOR);
+        List<Integer> versionParts = new ArrayList<>();
 
-            if (partialVersionParts.length <= 1) {
-                // throw error
+        char[] input = version.toCharArray();
+
+        int pos = 0;
+        // major.minor.patch. Example: 1.2.3
+        for (int verIndex = 0; verIndex < 3; verIndex++) {
+            int index = pos;
+            while (pos < input.length && input[pos] >= '0' && input[pos] <= '9') {
+                pos++; // match [0..9]+
+            }
+
+            int verSize = pos - index; // Size of version part
+            if (verSize == 0 || (input[index] == '0' && verSize > 1)) { // Empty String or Leading zero -> Error
                 throw new Exception("Invalid Semantic Version.");
             }
-            // major.minor.patch
-            versionPrefix = partialVersionParts[0];
 
-            versionSuffix = partialVersionParts[1];
+            versionParts.add(parseNumeric(new String(input, index, verSize)));
 
-        } else {
-            versionPrefix = version;
-        }
-
-        preVersionParts = versionPrefix.split("\\.");
-
-        if (preVersionParts.length > 3 ||
-            preVersionParts.length == 0 ||
-            dotCount(versionPrefix) >= preVersionParts.length) {
-            // Throw error as pre version should only contain major.minor.patch version
-            throw new Exception("Invalid Semantic Version.");
-        }
-
-        for (String preVersionPart : preVersionParts) {
-            if (parseNumeric(preVersionPart) == null) {
-                throw new Exception("Invalid Semantic Version.");
+            if (input.length > pos && input[pos] == '.') {
+                pos++;
+            } else {
+                break;
             }
         }
 
-        Collections.addAll(versionParts, preVersionParts);
-        if (!stringIsNullOrEmpty(versionSuffix)) {
-            versionParts.add(versionSuffix);
+        if (input.length > pos) {
+            if (input[pos] == BUILD_SEPERATOR) { // We have build meta tags -> descend
+                metaParts = new ArrayList<>();
+                if (versionParts.size() < 3 || !stateMeta(input, pos + 1)) {
+                    // throw error
+                    throw new Exception("Invalid Semantic Version.");
+                }
+            } else if (input[pos] == PRE_RELEASE_SEPERATOR) { // We have pre release tags -> descend
+                preParts = new ArrayList<>();
+                if (versionParts.size() < 3 || !stateRelease(input, pos + 1)) {
+                    // throw error
+                    throw new Exception("Invalid Semantic Version.");
+                }
+            } else {
+                throw new Exception("Invalid Semantic Version.");
+            }
         }
 
-        return versionParts.toArray(new String[0]);
+        return new SemanticVersionObj(versionParts, preParts, metaParts);
+    }
+
+
+    private static class SemanticVersionObj {
+
+        private final List<Integer> versionParts;
+
+        /**
+         * Pre-release tags (potentially empty, but never null). This is private to
+         * ensure read only access.
+         */
+        private final List<String> preRelease;
+
+        /**
+         * Build meta data tags (potentially empty, but never null). This is private
+         * to ensure read only access.
+         */
+        private final List<String> buildMeta;
+
+        public SemanticVersionObj(List<Integer> versionParts, List<String> preRelease, List<String> buildMeta) {
+            this.versionParts = versionParts;
+            this.preRelease = preRelease;
+            this.buildMeta = buildMeta;
+        }
     }
 }
